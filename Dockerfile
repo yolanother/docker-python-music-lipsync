@@ -40,28 +40,8 @@ RUN git clone https://github.com/yolanother/PythonMusicLipsync.git /lipsync
 
 WORKDIR /lipsync
 RUN git submodule update --init --recursive
-RUN python3.11 -m pip install --upgrade -r /requirements.txt --no-cache-dir
-RUN python3.11 -m pip install --no-cache-dir \
-    torch \
-    openai-whisper \
-    fastapi \
-    uvicorn \
-    python-multipart \
-    allosaurus \
-    whisper \
-    speechbrain \
-    pyaudio \
-    pydub \
-    torchaudio \
-    "librosa~=0.10.0" \
-    "matplotlib~=3.8.0" \
-    "opencv-python~=4.8.0" \
-    "resampy~=0.4.0" \
-    "numpy~=1.26.4" \
-    "tqdm~=4.66.0" \
-    BeatNet \
-    git+https://github.com/CPJKU/madmom.git
+RUN python3.11 -m pip install -r requirements.txt
 RUN python3.11 -m pip install git+https://github.com/CPJKU/madmom.git
-RUN python3.11 main.py --init
+RUN python3.11 python3 main.py --init
 RUN chmod +x /start.sh
 CMD /start.sh
