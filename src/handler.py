@@ -1,9 +1,14 @@
+import time
 import runpod
 import requests
 import os
 import base64
 import tempfile
 from runpod.serverless.utils import rp_upload
+
+def log(message):
+    """ Logs a message to the console. """
+    print(f"runpod-worker-lipsync - {message}")
 
 def save_audio_from_base64(encoded_data, save_path):
     """ Saves base64-encoded audio data to a specified path. """
@@ -28,6 +33,43 @@ def download_audio(url, download_path):
             return None, f"Failed to download audio. Status code: {response.status_code}"
     except Exception as e:
         return None, str(e)
+
+def check_server(url, retries=500, delay=50):
+    """
+    Check if a server is reachable via HTTP GET request
+
+    Args:
+    - url (str): The URL to check
+    - retries (int, optional): The number of times to attempt connecting to the server. Default is 50
+    - delay (int, optional): The time in milliseconds to wait between retries. Default is 500
+
+    Returns:
+    bool: True if the server is reachable within the given number of retries, otherwise False
+    """
+    
+    for i in range(retries):
+        try:
+            response = requests.get(url)
+    
+            # If the response status code is 200, the server is up and running
+            if response.status_code == 200:
+                log(f"API is reachable after {(i + 1) * delay} ms.")
+                return True
+        except requests.RequestException as e:
+            # If an exception occurs, the server may not be ready
+            pass
+    
+        # Log message every 5 seconds
+        if (i + 1) % (5000 // delay) == 0:
+            print("Still waiting on the server to come up...")
+    
+        # Wait for the specified delay before retrying
+        time.sleep(delay / 1000)
+
+    print(
+        f"runpod-worker-comfy - Failed to connect to server at {url} after {retries} attempts."
+    )
+    return False
 
 def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
     """ Sends the uploaded file to the processing endpoint. """
@@ -77,7 +119,22 @@ def handler(job):
     audio_base64 = job_input.get('data')
     url = job_input.get('url')
     transcript = job_input.get('transcript', job_input.get('lyrics', ""))
-    output_format = job_input.get('output_format', "pcm")
+    output_format = job_input.get('output_format', job_input.get('output_audio_format', "pcm"))
+
+    log(f"Processing job {id}")
+    log(f"Title: {job_input.get('title', 'Untitled')}")
+    log(f"Lyrics: {transcript}")
+    log(f"Output format: {output_format}")
+    log(f"Mime type: {job_input.get('mime_type', 'Unknown')}")
+
+    # If we have base64 audio output the fist 20 and last 20 characters with ... between
+    if audio_base64:
+        log(f"Base64 audio: {audio_base64[:20]}...{audio_base64[-20:]}")
+    # If we have a URL output the first 20 and last 20 characters with ... between
+    if url:
+        log(f"URL: {url}")
+
+    check_server('http://localhost:8000/docs', retries=50, delay=500)
 
     # Create a temporary file
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
