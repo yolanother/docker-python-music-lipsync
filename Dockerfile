@@ -40,7 +40,7 @@ RUN git clone https://github.com/yolanother/PythonMusicLipsync.git /lipsync
 
 WORKDIR /lipsync
 RUN git submodule update --init --recursive
-RUN python3.11 -m pip install --upgrade -r /requirements.txt --no-cache-dir &&
+RUN python3.11 -m pip install --upgrade -r /requirements.txt --no-cache-dir
 RUN python3.11 -m pip install --no-cache-dir \
     torch \
     openai-whisper \
