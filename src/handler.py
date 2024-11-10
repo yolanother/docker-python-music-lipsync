@@ -2,7 +2,6 @@ import runpod
 import requests
 import os
 import base64
-import uuid
 import tempfile
 
 def save_audio_from_base64(encoded_data, save_path):
