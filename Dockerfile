@@ -39,6 +39,7 @@ ADD "https://github.com/yolanother/PythonMusicLipsync/commits?per_page=1" latest
 RUN git clone https://github.com/yolanother/PythonMusicLipsync.git /lipsync
 
 WORKDIR /lipsync
+RUN git submodule update --init --recursive
 RUN pip3 install -r requirements.txt
 RUN pip3 install git+https://github.com/CPJKU/madmom.git
 RUN chmod +x /start.sh
