@@ -1,3 +1,4 @@
+import io
 import time
 import runpod
 import requests
@@ -5,6 +6,8 @@ import os
 import base64
 import tempfile
 from runpod.serverless.utils import rp_upload
+from pydub import AudioSegment
+import traceback
 
 def log(message):
     """ Logs a message to the console. """
@@ -13,10 +16,22 @@ def log(message):
 def save_audio_from_base64(encoded_data, save_path):
     """ Saves base64-encoded audio data to a specified path. """
     try:
+        # Decode the base64-encoded data
+        decoded_data = base64.b64decode(encoded_data)
+
+        # Create a file-like object from the decoded data
+        audio_stream = io.BytesIO(decoded_data)
+
+        # Load the audio from the file-like object
+        audio = AudioSegment.from_file(audio_stream)
+
+        # Export the audio as a WAV file
         with open(save_path, 'wb') as audio_file:
-            audio_file.write(base64.b64decode(encoded_data))
+            audio.export(audio_file.name, format="wav")
         return save_path, None
     except Exception as e:
+        # pint stack trace
+        traceback.print_exc()
         return None, str(e)
 
 def download_audio(url, download_path):
@@ -77,9 +92,9 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
         with open(file_path, 'rb') as file:
             # set the post accept to be json
             headers = {
-                "Content-Type": "application/json",
                 "accept": "application/json"
             }
+            log(f"Processing file {file_path} with transcript: {transcript}")
             response = requests.post(
                 'http://localhost:8000/analyze/',
                 headers=headers,
