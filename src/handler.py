@@ -29,30 +29,40 @@ def download_audio(url, download_path):
     except Exception as e:
         return None, str(e)
 
-def process_uploaded_file(job_id, file_path, transcript):
+def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
     """ Sends the uploaded file to the processing endpoint. """
     try:
         with open(file_path, 'rb') as file:
+            # set the post accept to be json
+            headers = {
+                "Content-Type": "application/json"
+            }
             response = requests.post(
                 'http://localhost:8000/analyze/',
+                headers=headers,
                 files={'file': ('audio.wav', file, 'audio/wav')},
-                data={'transcript': transcript}
+                data={'transcript': transcript, 'include_base64': True, "output_format": output_format}
             )
 
             if response.status_code == 200:
+                json = response.json()
                 if os.environ.get("BUCKET_ENDPOINT_URL", False):
                     # write response.content to a file so we can upload it to S3 use NamedTemporaryFile
                     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                         temp_filename = temp_file.name
                         temp_file.write(response.content)
-                        file = temp_file.name + ".pcmv"
+                        file = temp_file.name + ".pcm"
                     # URL to image in AWS S3
-                    url = rp_upload.files(job_id, [file])
+                    data_encoded_audio_url = rp_upload.files(job_id, [file])
+                    # write the json["data"] to a file so we can upload it to S3
+                    with open(file, 'wb') as f:
+                        f.write(json["data"])
+                    # URL to data in AWS S3
+                    data_url = rp_upload.files(job_id, [file])
                     os.remove(file)
-                    return {"url": url}, None
+                    return {"data_encoded_audio_url": data_encoded_audio_url, "data_url": data_url}, None
                 else:
-                    base64_encoded_data = base64.b64encode(response.content).decode('utf-8')
-                    return {"data": base64_encoded_data}, None
+                    return json, None
             else:
                 return None, f"Processing failed with status code: {response.status_code}"
     except Exception as e:
@@ -61,10 +71,12 @@ def process_uploaded_file(job_id, file_path, transcript):
 def handler(job):
     """ Handler function that will be used to process jobs. """
     job_input = job['input']
+    id = job['id']
 
     audio_base64 = job_input.get('data')
     url = job_input.get('url')
     transcript = job_input.get('transcript', job_input.get('lyrics', ""))
+    output_format = job_input.get('output_format', "pcm")
 
     # Create a temporary file
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -74,11 +86,12 @@ def handler(job):
         if audio_base64:
             saved_file, error = save_audio_from_base64(audio_base64, temp_filename)
             if saved_file:
-                response_data, error = process_uploaded_file(saved_file, transcript)
+                response_data, error = process_uploaded_file(id, saved_file, transcript, output_format)
                 if response_data:
                     return {
+                        "id": id,
                         "message": "Audio file successfully processed from base64 data.",
-                        "vismedata": response_data
+                        "data": response_data
                     }
                 else:
                     return {"error": f"Failed to process audio file: {error}"}
@@ -87,11 +100,12 @@ def handler(job):
         elif url:
             downloaded_file, error = download_audio(url, temp_filename)
             if downloaded_file:
-                response_data, error = process_uploaded_file(downloaded_file, transcript)
+                response_data, error = process_uploaded_file(id, downloaded_file, transcript, output_format)
                 if response_data:
                     return {
+                        "id": id,
                         "message": "Audio file successfully downloaded and processed.",
-                        "vismedata": response_data
+                        "data": response_data
                     }
                 else:
                     return {"error": f"Failed to process audio file: {error}"}

@@ -32,5 +32,6 @@ RUN git clone https://github.com/yolanother/PythonMusicLipsync.git /lipsync
 
 WORKDIR /lipsync
 RUN pip3 install -r requirements.txt
+RUN pip3 install git+https://github.com/CPJKU/madmom.git
 
 CMD /start.sh
