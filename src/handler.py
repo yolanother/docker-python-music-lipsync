@@ -3,6 +3,7 @@ import requests
 import os
 import base64
 import tempfile
+from runpod.serverless.utils import rp_upload
 
 def save_audio_from_base64(encoded_data, save_path):
     """ Saves base64-encoded audio data to a specified path. """
@@ -28,7 +29,7 @@ def download_audio(url, download_path):
     except Exception as e:
         return None, str(e)
 
-def process_uploaded_file(file_path, transcript):
+def process_uploaded_file(job_id, file_path, transcript):
     """ Sends the uploaded file to the processing endpoint. """
     try:
         with open(file_path, 'rb') as file:
@@ -37,9 +38,21 @@ def process_uploaded_file(file_path, transcript):
                 files={'file': ('audio.wav', file, 'audio/wav')},
                 data={'transcript': transcript}
             )
+
             if response.status_code == 200:
-                base64_encoded_data = base64.b64encode(response.content).decode('utf-8')
-                return base64_encoded_data, None
+                if os.environ.get("BUCKET_ENDPOINT_URL", False):
+                    # write response.content to a file so we can upload it to S3 use NamedTemporaryFile
+                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                        temp_filename = temp_file.name
+                        temp_file.write(response.content)
+                        file = temp_file.name + ".pcmv"
+                    # URL to image in AWS S3
+                    url = rp_upload.files(job_id, [file])
+                    os.remove(file)
+                    return {"url": url}, None
+                else:
+                    base64_encoded_data = base64.b64encode(response.content).decode('utf-8')
+                    return {"data": base64_encoded_data}, None
             else:
                 return None, f"Processing failed with status code: {response.status_code}"
     except Exception as e:
