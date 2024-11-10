@@ -68,6 +68,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+git push origin main
 git push origin --tags
 
 echo "Pushed commit and tag to remote."
