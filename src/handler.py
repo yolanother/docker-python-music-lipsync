@@ -35,7 +35,8 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
         with open(file_path, 'rb') as file:
             # set the post accept to be json
             headers = {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "accept": "application/json"
             }
             response = requests.post(
                 'http://localhost:8000/analyze/',
@@ -88,6 +89,12 @@ def handler(job):
             if saved_file:
                 response_data, error = process_uploaded_file(id, saved_file, transcript, output_format)
                 if response_data:
+                    # if submit url is in job input's submit field
+                    if job_input.get('submit', False):
+                        # submit the data to the submit url
+                        submit_url = job_input['submit_post_url']
+                        requests.post(submit_url, json=response_data)
+
                     return {
                         "id": id,
                         "message": "Audio file successfully processed from base64 data.",
