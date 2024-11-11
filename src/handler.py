@@ -1,4 +1,5 @@
 import io
+import json
 import time
 import runpod
 import requests
@@ -103,27 +104,31 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
             )
 
             if response.status_code == 200:
-                json = response.json()
+                jsonResponse = response.json()
                 if os.environ.get("BUCKET_ENDPOINT_URL", False):
-                    # write response.content to a file so we can upload it to S3 use NamedTemporaryFile
-                    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                        temp_filename = temp_file.name
-                        temp_file.write(response.content)
-                        file = temp_file.name
-                    # URL to image in AWS S3
-                    data_encoded_audio_url = rp_upload.files(job_id, [file])
-                    # write the json["data"] to a file so we can upload it to S3
-                    with open(file, 'wb') as f:
-                        f.write(json["data"])
-                    # URL to data in AWS S3
-                    data_url = rp_upload.files(job_id, [file])
-                    os.remove(file)
-                    return {"data_encoded_audio_url": data_encoded_audio_url, "data_url": data_url}, None
+                    log("Uploading to bucket: " + str(os.environ.get("BUCKET_ENDPOINT_URL", False)))
+
+                    data_encoded_audio_file = f"{job_id}.{output_format}v"
+                    data_file = f"{job_id}.json"
+                    # Write the response to a file
+                    with open(data_encoded_audio_file, 'wb') as f:
+                        base64EncodeData = jsonResponse['data_encoded_audio']
+                        f.write(base64.b64decode(base64EncodeData))
+                    with open(data_file, 'w', encoding='utf-8') as f:
+                        # Convert the JSON data to a string
+                        jsonString = json.dumps(jsonResponse['data'], ensure_ascii=False)
+                        f.write(jsonString)
+                    
+                    [data_encoded_audio_url, data_url] = rp_upload.files(job_id, [data_encoded_audio_file, data_file])
+                    data = {"data_encoded_audio_url": data_encoded_audio_url, "data_url": data_url}, None
+                    log(f"Uploaded to bucket: {data}")
+                    return data
                 else:
                     return json, None
             else:
                 return None, f"Processing failed with status code: {response.status_code}"
     except Exception as e:
+        traceback.print_exc()
         return None, str(e)
 
 def handler(job):
