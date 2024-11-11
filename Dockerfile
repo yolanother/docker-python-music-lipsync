@@ -42,6 +42,6 @@ WORKDIR /lipsync
 RUN git submodule update --init --recursive
 RUN python3.11 -m pip install -r requirements.txt
 RUN python3.11 -m pip install git+https://github.com/CPJKU/madmom.git
-RUN python3.11 python3 main.py --init
+RUN python3.11 main.py --init
 RUN chmod +x /start.sh
 CMD /start.sh
