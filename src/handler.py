@@ -109,7 +109,7 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
                     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
                         temp_filename = temp_file.name
                         temp_file.write(response.content)
-                        file = temp_file.name + ".pcm"
+                        file = temp_file.name
                     # URL to image in AWS S3
                     data_encoded_audio_url = rp_upload.files(job_id, [file])
                     # write the json["data"] to a file so we can upload it to S3
