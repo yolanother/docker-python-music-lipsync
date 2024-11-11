@@ -95,7 +95,6 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
             headers = {
                 "accept": "application/json"
             }
-            log(f"Processing file {file_path} with transcript: {transcript}")
             response = requests.post(
                 'http://localhost:8000/analyze/',
                 headers=headers,
@@ -145,7 +144,7 @@ def handler(job):
     log(f"Title: {job_input.get('title', 'Untitled')}")
     log(f"Lyrics: {transcript}")
     log(f"Output format: {output_format}")
-    log(f"Mime type: {job_input.get('mime_type', 'Unknown')}")
+    log(f"Mime type: {job_input.get('mime', 'Unknown')}")
 
     # If we have base64 audio output the fist 20 and last 20 characters with ... between
     if audio_base64:
