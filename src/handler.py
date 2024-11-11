@@ -114,8 +114,9 @@ def process_uploaded_file(upload):
         output_format = upload.get("output_format")
         sample_rate = upload.get("sample_rate")
         channels = upload.get("channels")
+        upload_mp3 = upload.get("upload_mp3", False)
 
-        if url is None and os.environ.get("BUCKET_ENDPOINT_URL", False) and save_file_mp3 is not None:
+        if upload_mp3 and url is None and os.environ.get("BUCKET_ENDPOINT_URL", False) and save_file_mp3 is not None:
             [upload_url] = rp_upload.files(job_id, [save_file_mp3])
             url = upload_url
             log("Uploaded source audio to bucket: " + str(url))
