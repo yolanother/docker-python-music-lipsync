@@ -26,24 +26,40 @@ def save_audio_from_base64(encoded_data, save_path):
         # Load the audio from the file-like object
         audio = AudioSegment.from_file(audio_stream)
 
+        save_path_mp3 = save_path.replace(".wav", ".mp3")
+        # if no mp3 extension was added add one
+        if save_path_mp3 == save_path:
+            save_path_mp3 += ".mp3"
+
         # Export the audio as a WAV file
         with open(save_path, 'wb') as audio_file:
             audio.export(audio_file.name, format="wav")
-        return save_path, None
+        with open(save_path_mp3, 'wb') as audio_file:
+            audio.export(audio_file.name, format="mp3")
+        return save_path, save_path_mp3, None
     except Exception as e:
         # pint stack trace
         traceback.print_exc()
         return None, str(e)
 
 def download_audio(url, download_path):
-    """ Downloads audio from a given URL to a specified path. """
+    """Downloads audio from a given URL, saves it as a WAV file at the specified path."""
     try:
         response = requests.get(url, stream=True)
         if response.status_code == 200:
-            with open(download_path, 'wb') as audio_file:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        audio_file.write(chunk)
+            # Load the downloaded audio into a BytesIO buffer
+            audio_data = io.BytesIO()
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    audio_data.write(chunk)
+            
+            # Move back to the start of the BytesIO buffer
+            audio_data.seek(0)
+
+            # Convert the audio data to WAV format and save it
+            audio = AudioSegment.from_file(audio_data)
+            audio.export(download_path, format="wav")
+
             return download_path, None
         else:
             return None, f"Failed to download audio. Status code: {response.status_code}"
@@ -87,10 +103,24 @@ def check_server(url, retries=500, delay=50):
     )
     return False
 
-def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
+def process_uploaded_file(upload):
     """ Sends the uploaded file to the processing endpoint. """
     try:
-        with open(file_path, 'rb') as file:
+        job_id = upload.get("id")
+        saved_file = upload.get("saved_file")
+        save_file_mp3 = upload.get("save_file_mp3")
+        url = upload.get("url")
+        transcript = upload.get("transcript")
+        output_format = upload.get("output_format")
+        sample_rate = upload.get("sample_rate")
+        channels = upload.get("channels")
+
+        if url is None and os.environ.get("BUCKET_ENDPOINT_URL", False) and save_file_mp3 is not None:
+            [upload_url] = rp_upload.files(job_id, [save_file_mp3])
+            url = upload_url
+            log("Uploaded source audio to bucket: " + str(url))
+    
+        with open(saved_file, 'rb') as file:
             # set the post accept to be json
             headers = {
                 "accept": "application/json"
@@ -99,7 +129,7 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
                 'http://localhost:8000/analyze/',
                 headers=headers,
                 files={'file': ('audio.wav', file, 'audio/wav')},
-                data={'transcript': transcript, 'include_base64': True, "output_format": output_format}
+                data={'transcript': transcript, 'include_base64': True, "output_format": output_format, "sample_rate": sample_rate, "channels": channels}
             )
 
             if response.status_code == 200:
@@ -119,7 +149,7 @@ def process_uploaded_file(job_id, file_path, transcript, output_format="pcm"):
                         f.write(jsonString)
                     
                     [data_encoded_audio_url, data_url] = rp_upload.files(job_id, [data_encoded_audio_file, data_file])
-                    data = {"data_encoded_audio_url": data_encoded_audio_url, "data_url": data_url}, None
+                    data = {"data_encoded_audio_url": data_encoded_audio_url, "data_url": data_url, "mp3_url": url}, None
                     log(f"Uploaded to bucket: {data}")
                     return data
                 else:
@@ -161,9 +191,18 @@ def handler(job):
 
     try:
         if audio_base64:
-            saved_file, error = save_audio_from_base64(audio_base64, temp_filename)
+            saved_file, save_file_mp3, error = save_audio_from_base64(audio_base64, temp_filename)
+            upload = {
+                "id": id,
+                "saved_file": saved_file,
+                "save_file_mp3": save_file_mp3,
+                "transcript": transcript,
+                "output_format": output_format,
+                "sample_rate": 24000,
+                "channels": 1,
+            }
             if saved_file:
-                response_data, error = process_uploaded_file(id, saved_file, transcript, output_format)
+                response_data, error = process_uploaded_file(upload)
                 if response_data:
                     # if submit url is in job input's submit field
                     if job_input.get('submit', False):
@@ -182,8 +221,17 @@ def handler(job):
                 return {"error": f"Failed to save audio from base64 data: {error}"}
         elif url:
             downloaded_file, error = download_audio(url, temp_filename)
+            upload = {
+                "id": id,
+                "saved_file": downloaded_file,
+                "url": url,
+                "transcript": transcript,
+                "output_format": output_format,
+                "sample_rate": 24000,
+                "channels": 1,
+            }
             if downloaded_file:
-                response_data, error = process_uploaded_file(id, downloaded_file, transcript, output_format)
+                response_data, error = process_uploaded_file(upload)
                 if response_data:
                     return {
                         "id": id,
