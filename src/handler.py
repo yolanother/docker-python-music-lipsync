@@ -201,6 +201,7 @@ def handler(job):
                 "output_format": output_format,
                 "sample_rate": 24000,
                 "channels": 1,
+                "url": url
             }
             if saved_file:
                 response_data, error = process_uploaded_file(upload)
