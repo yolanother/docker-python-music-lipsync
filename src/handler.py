@@ -146,7 +146,7 @@ def process_uploaded_file(upload):
                         f.write(base64.b64decode(base64EncodeData))
                     with open(data_file, 'w', encoding='utf-8') as f:
                         # Convert the JSON data to a string
-                        jsonString = json.dumps(jsonResponse['data'], ensure_ascii=False)
+                        jsonString = json.dumps(jsonResponse['data'], ensure_ascii=False, indent=2)
                         f.write(jsonString)
                     
                     [data_encoded_audio_url, data_url] = rp_upload.files(job_id, [data_encoded_audio_file, data_file])
