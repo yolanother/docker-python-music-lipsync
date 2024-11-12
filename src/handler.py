@@ -209,8 +209,9 @@ def handler(job):
                     # if submit url is in job input's submit field
                     if job_input.get('submit', False):
                         # submit the data to the submit url
-                        submit_url = job_input['submit_post_url']
-                        requests.post(submit_url, json=response_data)
+                        submit_url = job_input['submit']
+                        result = requests.post(submit_url, json=response_data)
+                        log(f"Submitted data to {submit_url} with status code {result.status_code}\n{result.text}")
 
                     return {
                         "id": id,
