@@ -170,6 +170,7 @@ def handler(job):
     url = job_input.get('url')
     transcript = job_input.get('transcript', job_input.get('lyrics', ""))
     output_format = job_input.get('output_format', job_input.get('output_audio_format', "pcm"))
+    upload_mp3 = job_input.get('upload_mp3', False)
 
     log(f"Processing job {id}")
     log(f"Title: {job_input.get('title', 'Untitled')}")
@@ -201,7 +202,8 @@ def handler(job):
                 "output_format": output_format,
                 "sample_rate": 24000,
                 "channels": 1,
-                "url": url
+                "url": url,
+                "upload_mp3": upload_mp3
             }
             if saved_file:
                 response_data, error = process_uploaded_file(upload)
