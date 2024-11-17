@@ -160,6 +160,15 @@ def process_uploaded_file(upload):
     except Exception as e:
         traceback.print_exc()
         return None, str(e)
+    
+def submit(job_input, response_data):
+    # if submit url is in job input's submit field
+    if job_input.get('submit', False):
+        # submit the data to the submit url
+        submit_url = job_input['submit']
+        log(f"Submitting data to {submit_url}")
+        result = requests.post(submit_url, json=response_data)
+        log(f"Submitted data to {submit_url} with status code {result.status_code}\n{result.text}")
 
 def handler(job):
     """ Handler function that will be used to process jobs. """
@@ -208,12 +217,8 @@ def handler(job):
             if saved_file:
                 response_data, error = process_uploaded_file(upload)
                 if response_data:
-                    # if submit url is in job input's submit field
-                    if job_input.get('submit', False):
-                        # submit the data to the submit url
-                        submit_url = job_input['submit']
-                        result = requests.post(submit_url, json=response_data)
-                        log(f"Submitted data to {submit_url} with status code {result.status_code}\n{result.text}")
+                    log(f"Processed audio file from base64 data.")
+                    submit(job_input, response_data)
 
                     return {
                         "id": id,
@@ -238,6 +243,8 @@ def handler(job):
             if downloaded_file:
                 response_data, error = process_uploaded_file(upload)
                 if response_data:
+                    log(f"Downloaded and processed audio file from URL.")
+                    submit(job_input, response_data)
                     return {
                         "id": id,
                         "message": "Audio file successfully downloaded and processed.",
