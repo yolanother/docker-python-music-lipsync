@@ -136,8 +136,6 @@ def process_uploaded_file(upload):
             if response.status_code == 200:
                 jsonResponse = response.json()
                 if os.environ.get("BUCKET_ENDPOINT_URL", False):
-                    log("Uploading to bucket: " + str(os.environ.get("BUCKET_ENDPOINT_URL", False)))
-
                     data_encoded_audio_file = f"{job_id}.{output_format}v"
                     data_file = f"{job_id}.json"
                     # Write the response to a file
